@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>98% Club - Compatibility Finder</title>
+  <style>
+    body {
+      font-family: Georgia, serif;
+      margin: 0;
+      background-color: #f5f5f5;
+      padding-top: 80px;
+    }
+    .background-cadets {
+      background-image: url('cadets_summer_background.png');
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 1;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    h1 {
+      color: #2e3e4e;
+    }
+    input, button {
+      width: 100%;
+      padding: 0.75rem;
+      margin: 1rem 0;
+      border: 1px solid #bbb;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .match-card {
+      background: #dce4ed;
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: 5px;
+      border-left: 4px solid #3c4f66;
+      text-align: left;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #2b4c6f;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .logo-img {
+      max-width: 150px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="background-cadets"></div>
+
+  <div class="container" id="homePage">
+    <img src="98percent_club_logo.png" alt="98% Club Logo" class="logo-img">
+    <h1>Welcome to The 98% Club</h1>
+    <button onclick="window.open('https://forms.office.com/Pages/ResponsePage.aspx?id=EYj_mRc1qUC_EEXqCjIfCwIO_WvPF1VEnfMqhA8tZPxUMlExSTFMUlFSRTRXUUpBMlA5STFaOFZaRC4u', '_blank')">Take the Survey</button>
+    <button onclick="showTab('match')">Find Your Top 3 Matches</button>
+  </div>
+
+  <div class="container" id="match" style="display:none;">
+    <div class="nav">
+      <a onclick="showTab('home')">← Return to Home</a>
+    </div>
+    <h1>Find Your Top 3 Matches</h1>
+    <input type="text" id="nameInput" placeholder="Enter your full name" />
+    <button onclick="findMatches()">Show Matches</button>
+    <div id="results"></div>
+  </div>
+
+  <script src="peopleData_snippet.js"></script>
+  <script>const people = typeof people !== "undefined" ? people : [];</script>
+  <script src="personData_snippet.js"></script>
+  <script>
+    function computeCompatibility(personA, personB) {
+      let score = 0;
+      const setA = field => new Set((personA[field] || "").split(";").map(s => s.trim()));
+      const setB = field => new Set((personB[field] || "").split(";").map(s => s.trim()));
+      const dealbreakerOverlap = [...setA("dealbreakers")].filter(x => setB("dealbreakers").has(x)).length;
+      if (dealbreakerOverlap > 0) return 0;
+      const valuesMatch = [...setA("values")].filter(x => setB("values").has(x)).length;
+      score += valuesMatch * 5;
+      const traitsMatch = [...setA("traits")].filter(x => setB("traits").has(x)).length;
+      score += traitsMatch * 5;
+      if (personA.love_language === personB.love_language) score += 3;
+      if (personA.goals === personB.goals) score += 3;
+      return score;
+    }
+
+    function findTopMatches(currentName, allPeople) {
+      const me = allPeople.find(p => p.name.toLowerCase() === currentName.toLowerCase());
+      if (!me) return [];
+      return allPeople
+        .filter(p => p.name !== me.name && p.gender !== me.gender)
+        .map(p => ({ name: p.name, score: computeCompatibility(me, p) }))
+        .filter(p => p.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+    }
+
+    function findMatches() {
+      const inputName = document.getElementById("nameInput").value.trim();
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+      const matches = findTopMatches(inputName, people);
+      if (matches.length === 0) {
+        resultsDiv.innerHTML = "<p style='color:red;'>No matches found. Please check the spelling or data availability.</p>";
+        return;
+      }
+      matches.forEach((match, index) => {
+        const card = document.createElement("div");
+        card.className = "match-card";
+        card.innerHTML = `<strong>Match ${index + 1}:</strong> <span style="color:#1a1a1a; font-weight:bold;">${match.name}</span><br>Compatibility: ${match.score}`;
+        card.addEventListener("click", () => showDetails(match.name));
+        resultsDiv.appendChild(card);
+      });
+    }
+
+    function showDetails(personName) {
+      const existing = document.getElementById("details-" + personName.replace(/\s+/g, '-'));
+      if (existing) {
+        existing.remove();
+        return;
+      }
+      const data = personData[personName];
+      if (!data) return;
+      const detailDiv = document.createElement("div");
+      detailDiv.id = "details-" + personName.replace(/\s+/g, '-');
+      detailDiv.className = "match-card";
+      detailDiv.innerHTML = '<strong>' + personName + '</strong><br>' +
+        '<strong>Company:</strong> ' + data.company + '<br>' +
+        '<strong>Emotionally Available?:</strong> ' + data.emotional + '<br>' +
+        '<strong>Long-term Relationship Goals:</strong> ' + data.goals + '<br>' +
+        '<strong>Values:</strong> ' + data.values + '<br>' +
+        '<strong>Dealbreakers:</strong> ' + data.dealbreakers + '<br>' +
+        '<strong>Traits:</strong> ' + data.traits + '<br>' +
+        '<strong>Care Language:</strong> ' + data.care;
+      document.getElementById("results").appendChild(detailDiv);
+    }
+
+    function showTab(tabId) {
+      document.getElementById("homePage").style.display = tabId === 'home' ? 'block' : 'none';
+      document.getElementById("match").style.display = tabId === 'match' ? 'block' : 'none';
+    }
+  </script>
+</body>
+</html>
